@@ -1,0 +1,158 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Nov 18 12:36:16 2021
+
+@author: ayubh
+"""
+
+#generate multiple interest rate paths to calculate present value
+#Read code and uncomment code to generate plots if necessary
+
+
+#constant volatility assumed at 20%, this can be altered to see how the MBS would behave if the volatility changes
+#mean and variance of brownian motion
+# r,( ru, rd), (ruu, rud, rdd)-> 2 timesteps
+#In order to model an asset price distribution correctly in a log-normal fashion, a stochastic version of the chain rule will be used to solve a stochastic differential equation representing geometric Brownian motion. -quant start.com
+
+#geometric brownian motion, both drift (mean) and volatility are constant
+import numpy as np
+import pandas as pd
+from pandas import read_csv
+from matplotlib import pyplot as plt
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
+import math
+from mpl_toolkits import mplot3d
+from scipy.stats import norm
+
+def probability_based_path(vol):
+   timestep = 1/12
+   u= np.exp (vol*np.sqrt(timestep))
+   d=1/u
+   total_time=360 #in months 
+   r=0.05/12
+   path=pd.DataFrame() 
+  
+ 
+    
+   
+   n=10000
+   for j in range(n):
+       movement=np.random.binomial(1,0.5,360)
+       path_r=np.zeros(360)
+       #print(movement)
+    
+       for i,rate in enumerate(path_r):
+           
+           if i==0:
+              r=0.05/12
+              path_r[i]=r
+           elif movement[i]==1:
+               
+               path_r[i]=r*u
+               r=r*u
+           else:
+               path_r[i]=r*d
+               r=r*d
+           
+           
+       path[j]=path_r
+       
+     
+   
+   return path
+     
+     
+# x=probability_based_path(0.01)  
+# y=x.mean(axis=1) 
+# x.plot(legend=False)
+# y.plot(legend=False)
+# plt.title("Simulated Interest Rate Paths")
+# plt.xlabel("Time in months")
+# plt.ylabel(" Monthly Interest Rate")
+          
+
+#vol diffusion path based on parameters for 30 years
+
+def Libor_Market_Model(a,t): 
+    
+     vol=((a[0]*t+a[1])*np.exp(-a[2]*t))+a[3]
+     return vol 
+vol_func=[]     
+a = [0.13,0.04,0.7,0.08]     
+for i in range(30) :
+  vol_func.append([Libor_Market_Model(a,i)])
+
+# plt.plot(vol_func)
+
+
+def HW_model_two_factor():
+    dt_str = '1/1/21'
+
+    settle_date = datetime.strptime(dt_str, '%m/%d/%y')
+    zerorate_timeframe = [3/12, 6/12, 1 ,5, 7 ,10 ,20 ,30] #in years
+    zerorate = [0.033, 0.034, 0.035, 0.040, 0.042, 0.044, 0.048, 0.0475]
+    zero_date_to_plot = []
+    for i,days in enumerate(zerorate_timeframe):
+        zero_date_to_plot.append(timedelta(days*365)+settle_date)
+  
+    
+    #now get monthly dates
+    
+ 
+    series = read_csv('Dates.csv')
+    series.set_index('Date')
+    C=series.interpolate(method='linear')
+    #linear interpolation to find missing values
+  
+    sd=np.std(C['zero_rate'])
+    #DiscountRates = zero2disc(ZeroRates,ZeroDates,Settle);
+    
+    
+   
+        #irdc-theta based on current term struct of int rates- time dependence in single factor /short int rate model
+        #a and b are mean reversion factors for both the factors 
+        #sigma and eta are standard deviations of first and second factors
+        #rho is the correlation between both the factors
+    a = 0.05
+    b = 0.04
+    timestep=1/12
+    n=360
+    rho = -0.7
+        # G2PP = 
+        # # LinearGaussian2F with properties:
+
+        # # ZeroCurve: [1x1 IRDataCurve]
+        # #     a: @(t,V)ina
+        # #     b: @(t,V)inb
+        # # sigma: @(t,V)insigma
+        # #   eta: @(t,V)ineta
+        # #   rho: -0.700
+    
+    #Gaussian 2D syntax used...
+   
+    ret_path=pd.DataFrame()
+   
+    for i in range(1000):
+        res=[]
+        sigma = np.random.uniform(0.0,0.003)
+   
+        eta = np.random.uniform(0.0,0.01)
+        res=0.033+(a*np.exp(( - ((C['zero_rate']) - a)**2.0 / (2.0 * sigma**2.0) )+ (b * np.exp( - (C['zero_rate'] - b)**2.0 / (2.0 * eta**2.0)))))
+        
+        ret_path[i]=res
+        
+      
+
+    ret_path.set_index(C['Date'])
+    return ret_path
+    
+
+          
+         
+         
+     
+     
+    
+    
+    
